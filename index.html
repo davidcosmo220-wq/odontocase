@@ -4,260 +4,64 @@
 <meta charset="UTF-8">
 <title>OdontoCase</title>
 
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"></script>
+
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:system-ui,-apple-system,Segoe UI,Roboto;
-  background:#0b0d11;
-  color:#e5e7eb;
-  display:flex;
-}
-
-/* SIDEBAR */
-.sidebar{
-  width:240px;
-  background:#0f1218;
-  border-right:1px solid #1f2937;
-  height:100vh;
-  padding:25px 18px;
-}
-.logo{
-  font-weight:700;
-  font-size:20px;
-  margin-bottom:25px;
-}
-.menu button{
-  width:100%;
-  padding:12px;
-  margin-bottom:8px;
-  background:transparent;
-  border:1px solid #1f2937;
-  color:#e5e7eb;
-  border-radius:8px;
-  cursor:pointer;
-  text-align:left;
-}
-.menu button:hover{
-  background:#171a21;
-}
-
-/* CONTEÚDO */
-.main{
-  flex:1;
-  padding:30px 40px;
-}
-
-/* CARDS */
-.card{
-  background:#11141b;
-  border:1px solid #262b36;
-  padding:22px;
-  border-radius:12px;
-  margin-bottom:20px;
-}
-.card h2{
-  margin-bottom:15px;
-}
-
-/* INPUTS */
-input{
-  width:100%;
-  padding:12px;
-  margin-bottom:12px;
-  background:#0b0d11;
-  border:1px solid #2c3340;
-  color:white;
-  border-radius:8px;
-}
-
-/* BOTÕES */
-.btn{
-  padding:12px;
-  background:#e11d48;
-  border:none;
-  color:white;
-  border-radius:8px;
-  font-weight:600;
-  cursor:pointer;
-}
-.btn:hover{ background:#be123c; }
-
-/* GRID IMAGENS */
-.preview{
-  display:flex;
-  gap:15px;
-  margin-top:15px;
-}
-.preview img{
-  width:100%;
-  border-radius:10px;
-  border:1px solid #333;
-}
-
-/* LISTA */
-.item{
-  padding:14px;
-  border:1px solid #2a2f3a;
-  border-radius:8px;
-  margin-top:10px;
-  background:#0d1016;
-  cursor:pointer;
-}
-.item:hover{ background:#131722; }
-
-/* ESCONDER TELAS */
-.screen{display:none}
-.active{display:block}
-
-/* RESPONSIVO */
-@media(max-width:900px){
-  .sidebar{display:none}
-  body{flex-direction:column}
-}
+body{font-family:system-ui;background:#0b0d11;color:white;margin:0}
+.center{display:flex;align-items:center;justify-content:center;height:100vh}
+.card{background:#11141b;padding:30px;border-radius:12px;width:320px}
+input,button{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:none}
+input{background:#0b0d11;border:1px solid #333;color:white}
+button{background:#e11d48;color:white;font-weight:600;cursor:pointer}
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
-<div class="sidebar">
-<div class="logo">OdontoCase</div>
-
-<div class="menu">
-<button onclick="show('dashboard')">Dashboard</button>
-<button onclick="show('novo')">Novo Caso</button>
-</div>
-</div>
-
-<!-- CONTEÚDO -->
-<div class="main">
-
-<!-- DASHBOARD -->
-<div id="dashboard" class="screen active">
+<div id="login" class="center">
 <div class="card">
-<h2>Casos Clínicos</h2>
-<div id="lista"></div>
+<h2>OdontoCase</h2>
+<input id="email" placeholder="Email">
+<input id="senha" type="password" placeholder="Senha">
+<button onclick="login()">Entrar</button>
+<button onclick="cadastrar()">Criar conta</button>
 </div>
-</div>
-
-<!-- NOVO CASO -->
-<div id="novo" class="screen">
-<div class="card">
-<h2>Novo Caso</h2>
-
-<input id="paciente" placeholder="Nome do paciente">
-<input id="procedimento" placeholder="Procedimento">
-
-<label>Foto ANTES</label>
-<input type="file" id="antes">
-
-<label>Foto DEPOIS</label>
-<input type="file" id="depois">
-
-<button class="btn" onclick="gerar()">Gerar comparação</button>
-
-<div class="preview" id="preview"></div>
-
-<button class="btn" onclick="download()">Baixar montagem</button>
-<button class="btn" onclick="salvar()">Salvar caso</button>
-
-</div>
-</div>
-
 </div>
 
 <script>
-let imgAntes="", imgDepois="";
-
-function show(id){
-  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
-
-document.getElementById("antes").onchange=e=>{
-  const r=new FileReader();
-  r.onload=x=>imgAntes=x.target.result;
-  r.readAsDataURL(e.target.files[0]);
+// 🔥 COLE SUA CONFIG AQUI
+const firebaseConfig = {
+  apiKey: "COLE",
+  authDomain: "COLE",
+  projectId: "COLE",
+  storageBucket: "COLE",
+  messagingSenderId: "COLE",
+  appId: "COLE"
 };
 
-document.getElementById("depois").onchange=e=>{
-  const r=new FileReader();
-  r.onload=x=>imgDepois=x.target.result;
-  r.readAsDataURL(e.target.files[0]);
-};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
 
-function gerar(){
-  if(!imgAntes||!imgDepois){
-    alert("Envie as duas imagens");
-    return;
+function login(){
+  auth.signInWithEmailAndPassword(
+    email.value, senha.value
+  );
+}
+
+function cadastrar(){
+  auth.createUserWithEmailAndPassword(
+    email.value, senha.value
+  );
+}
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    location.href="/dashboard.html";
   }
-  document.getElementById("preview").innerHTML=
-  `<div><img id="imgA" src="${imgAntes}"></div>
-   <div><img id="imgD" src="${imgDepois}"></div>`;
-}
-
-function download(){
-  if(!imgAntes||!imgDepois){
-    alert("Gere a comparação primeiro");
-    return;
-  }
-
-  const canvas=document.createElement("canvas");
-  const ctx=canvas.getContext("2d");
-
-  const img1=new Image();
-  const img2=new Image();
-
-  img1.src=imgAntes;
-  img2.src=imgDepois;
-
-  img1.onload=()=>{
-    img2.onload=()=>{
-      canvas.width=img1.width*2;
-      canvas.height=img1.height;
-
-      ctx.drawImage(img1,0,0);
-      ctx.drawImage(img2,img1.width,0);
-
-      const link=document.createElement("a");
-      link.download="comparacao.png";
-      link.href=canvas.toDataURL();
-      link.click();
-    }
-  }
-}
-
-function salvar(){
-  const paciente=document.getElementById("paciente").value;
-  const procedimento=document.getElementById("procedimento").value;
-
-  if(!paciente) return alert("Digite o nome");
-
-  const caso={paciente,procedimento,antes:imgAntes,depois:imgDepois};
-
-  let dados=JSON.parse(localStorage.getItem("casos")||"[]");
-  dados.push(caso);
-  localStorage.setItem("casos",JSON.stringify(dados));
-
-  carregar();
-  show('dashboard');
-}
-
-function carregar(){
-  const lista=document.getElementById("lista");
-  lista.innerHTML="";
-  let dados=JSON.parse(localStorage.getItem("casos")||"[]");
-
-  dados.forEach(c=>{
-    lista.innerHTML+=`
-      <div class="item">
-        <strong>${c.paciente}</strong><br>
-        <small>${c.procedimento}</small>
-      </div>`;
-  });
-}
-
-carregar();
+});
 </script>
 
 </body>
