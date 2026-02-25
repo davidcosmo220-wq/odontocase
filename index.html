@@ -2,37 +2,20 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>OdontoCase</title>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-<style>
-body{font-family:system-ui;background:#0b0d11;color:white;margin:0}
-.center{display:flex;align-items:center;justify-content:center;height:100vh}
-.card{background:#11141b;padding:30px;border-radius:12px;width:320px}
-input,button{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:none}
-input{background:#0b0d11;border:1px solid #333;color:white}
-button{background:#e11d48;color:white;font-weight:600;cursor:pointer}
-</style>
-</head>
-
-<body>
-
-<div id="login" class="center">
-<div class="card">
-<h2>OdontoCase</h2>
-<input id="email" placeholder="Email">
-<input id="senha" type="password" placeholder="Senha">
-<button onclick="login()">Entrar</button>
-<button onclick="cadastrar()">Criar conta</button>
-</div>
-</div>
-
-<script>
-// 🔥 COLE SUA CONFIG AQUI
 const firebaseConfig = {
   apiKey: "COLE",
   authDomain: "COLE",
@@ -42,27 +25,144 @@ const firebaseConfig = {
   appId: "COLE"
 };
 
-firebase.initializeApp(firebaseConfig);
-const auth=firebase.auth();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-function login(){
-  auth.signInWithEmailAndPassword(
-    email.value, senha.value
-  );
+// mantém usuário logado (modo SaaS real)
+setPersistence(auth, browserLocalPersistence);
+
+window.login = async function(){
+  try{
+    loader(true)
+    await signInWithEmailAndPassword(
+      auth,
+      email.value,
+      senha.value
+    );
+  }catch(e){
+    alert("Erro: " + traduzErro(e.code))
+  }finally{
+    loader(false)
+  }
 }
 
-function cadastrar(){
-  auth.createUserWithEmailAndPassword(
-    email.value, senha.value
-  );
+window.cadastrar = async function(){
+  try{
+    loader(true)
+    await createUserWithEmailAndPassword(
+      auth,
+      email.value,
+      senha.value
+    );
+    alert("Conta criada ✔")
+  }catch(e){
+    alert("Erro: " + traduzErro(e.code))
+  }finally{
+    loader(false)
+  }
 }
 
-auth.onAuthStateChanged(user=>{
+onAuthStateChanged(auth, user=>{
   if(user){
     location.href="/dashboard.html";
   }
 });
+
+function loader(status){
+  document.getElementById("btnLogin").innerText=
+    status ? "Entrando..." : "Entrar";
+}
+
+function traduzErro(code){
+  const map={
+    "auth/user-not-found":"Usuário não encontrado",
+    "auth/wrong-password":"Senha incorreta",
+    "auth/email-already-in-use":"Email já cadastrado",
+    "auth/weak-password":"Senha fraca (mín. 6 caracteres)"
+  }
+  return map[code] || code;
+}
 </script>
+
+<style>
+body{
+font-family:system-ui;
+background:#0b0d11;
+color:white;
+margin:0;
+}
+
+.center{
+display:flex;
+align-items:center;
+justify-content:center;
+height:100vh;
+}
+
+.card{
+background:#11141b;
+padding:35px;
+border-radius:14px;
+width:340px;
+box-shadow:0 0 40px rgba(0,0,0,0.6);
+}
+
+.logo{
+font-size:24px;
+font-weight:700;
+margin-bottom:20px;
+letter-spacing:.5px;
+}
+
+input,button{
+width:100%;
+padding:13px;
+margin-top:12px;
+border-radius:10px;
+border:none;
+font-size:15px;
+}
+
+input{
+background:#0b0d11;
+border:1px solid #2a2f3a;
+color:white;
+}
+
+button{
+background:#e11d48;
+color:white;
+font-weight:600;
+cursor:pointer;
+transition:.2s;
+}
+
+button:hover{
+transform:translateY(-1px);
+box-shadow:0 4px 18px rgba(225,29,72,0.4);
+}
+
+.sec{
+background:#1a1f2a;
+}
+</style>
+</head>
+
+<body>
+
+<div class="center">
+<div class="card">
+
+<div class="logo">OdontoCase</div>
+
+<input id="email" placeholder="Email">
+<input id="senha" type="password" placeholder="Senha">
+
+<button id="btnLogin" onclick="login()">Entrar</button>
+<button class="sec" onclick="cadastrar()">Criar conta</button>
+
+</div>
+</div>
 
 </body>
 </html>
