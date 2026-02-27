@@ -258,10 +258,21 @@
         appId: "SEU_APP_ID",
       };
 
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const db = getFirestore(app);
-      const storage = getStorage(app);
+      const hasPlaceholderConfig = Object.values(firebaseConfig).some(
+        (value) => !value || String(value).startsWith("SEU_") || String(value).startsWith("SUA_"),
+      );
+
+      let app = null;
+      let auth = null;
+      let db = null;
+      let storage = null;
+
+      if (!hasPlaceholderConfig) {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        storage = getStorage(app);
+      }
 
       const $ = (id) => document.getElementById(id);
       const authView = $("authView");
@@ -291,6 +302,23 @@
       function setStatus(el, message, type = "") {
         el.textContent = message;
         el.className = `status ${type}`.trim();
+      }
+
+      function normalizeFirebaseError(error) {
+        const code = error?.code || "";
+        const map = {
+          "auth/invalid-api-key": "Configuração Firebase inválida (API key).",
+          "auth/invalid-credential": "Email ou senha inválidos.",
+          "auth/user-not-found": "Usuário não encontrado.",
+          "auth/wrong-password": "Senha incorreta.",
+          "auth/email-already-in-use": "Este email já está cadastrado.",
+          "auth/weak-password": "Senha fraca. Use pelo menos 6 caracteres.",
+          "auth/network-request-failed": "Falha de rede. Verifique sua conexão.",
+          "auth/too-many-requests": "Muitas tentativas. Tente novamente em instantes.",
+          "auth/operation-not-allowed": "Login por email/senha não está habilitado no Firebase Auth.",
+          "auth/unauthorized-domain": "Domínio não autorizado no Firebase Auth.",
+        };
+        return map[code] || error?.message || "Erro inesperado.";
       }
 
       function toggleViews(isLogged) {
@@ -482,6 +510,7 @@
       }
 
       async function uploadCaseImage(file, uid, kind) {
+        if (!storage) throw new Error("Firebase Storage não inicializado.");
         const fileRef = ref(storage, `usuarios/${uid}/casos/${Date.now()}-${kind}-${file.name}`);
         await uploadBytes(fileRef, file);
         return getDownloadURL(fileRef);
@@ -536,12 +565,14 @@
       }
 
       async function loadCases(uid) {
+        if (!db) return;
         const snapshot = await getDocs(query(collection(db, "usuarios", uid, "casos"), orderBy("createdAt", "desc")));
         caseCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         renderCases();
       }
 
       async function loadMontages(uid) {
+        if (!db) return;
         const all = [];
         for (const item of caseCache) {
           const subSnap = await getDocs(query(collection(db, "usuarios", uid, "casos", item.id, "montagens"), orderBy("createdAt", "desc")));
@@ -553,6 +584,10 @@
       }
 
       async function saveCase() {
+        if (!auth || !db || !storage) {
+          setStatus(caseStatus, "Configure o Firebase antes de salvar casos.", "error");
+          return;
+        }
         const user = auth.currentUser;
         if (!user) return;
 
@@ -578,11 +613,15 @@
           await loadMontages(user.uid);
           setStatus(caseStatus, "Caso salvo com sucesso.", "success");
         } catch (error) {
-          setStatus(caseStatus, `Erro ao salvar caso: ${error.message}`, "error");
+          setStatus(caseStatus, `Erro ao salvar caso: ${normalizeFirebaseError(error)}`, "error");
         }
       }
 
       async function saveMontage() {
+        if (!auth || !db || !storage) {
+          setStatus(montageStatus, "Configure o Firebase antes de salvar montagens.", "error");
+          return;
+        }
         const user = auth.currentUser;
         const caseId = montageCaseSelect.value;
         if (!user || !caseId) {
@@ -623,7 +662,7 @@
           await loadMontages(user.uid);
           setStatus(montageStatus, "Montagem salva e vinculada ao caso.", "success");
         } catch (error) {
-          setStatus(montageStatus, `Falha ao salvar montagem: ${error.message}`, "error");
+          setStatus(montageStatus, `Falha ao salvar montagem: ${normalizeFirebaseError(error)}`, "error");
         }
       }
 
@@ -667,6 +706,7 @@
       }
 
       async function reeditMontage(montageId, caseId) {
+        if (!auth || !db) return;
         const user = auth.currentUser;
         if (!user) return;
         const docRef = doc(db, "usuarios", user.uid, "casos", caseId, "montagens", montageId);
@@ -697,6 +737,10 @@
       }
 
       async function register() {
+        if (!auth) {
+          setStatus(authStatus, "Preencha o firebaseConfig com as credenciais reais do seu projeto.", "error");
+          return;
+        }
         const email = $("authEmail").value.trim();
         const pass = $("authPassword").value;
         if (!email || !pass) {
@@ -707,11 +751,15 @@
           await createUserWithEmailAndPassword(auth, email, pass);
           setStatus(authStatus, "Conta criada com sucesso.", "success");
         } catch (error) {
-          setStatus(authStatus, `Cadastro falhou: ${error.message}`, "error");
+          setStatus(authStatus, `Cadastro falhou: ${normalizeFirebaseError(error)}`, "error");
         }
       }
 
       async function login() {
+        if (!auth) {
+          setStatus(authStatus, "Preencha o firebaseConfig com as credenciais reais do seu projeto.", "error");
+          return;
+        }
         const email = $("authEmail").value.trim();
         const pass = $("authPassword").value;
         if (!email || !pass) {
@@ -722,7 +770,7 @@
           await signInWithEmailAndPassword(auth, email, pass);
           setStatus(authStatus, "Login realizado.", "success");
         } catch (error) {
-          setStatus(authStatus, `Login inválido: ${error.message}`, "error");
+          setStatus(authStatus, `Login inválido: ${normalizeFirebaseError(error)}`, "error");
         }
       }
 
@@ -762,11 +810,17 @@
       });
 
       $("logoutBtn").addEventListener("click", async () => {
+        if (!auth) return;
         await signOut(auth);
         setStatus(authStatus, "Logout efetuado.", "success");
       });
 
-      onAuthStateChanged(auth, async (user) => {
+      if (hasPlaceholderConfig) {
+        setStatus(authStatus, "Configure o firebaseConfig (apiKey, authDomain, projectId...) para habilitar o login.", "error");
+      }
+
+      if (auth) {
+        onAuthStateChanged(auth, async (user) => {
         if (!user) {
           toggleViews(false);
           loggedUser.textContent = "Usuário: não autenticado";
@@ -784,7 +838,8 @@
           montageCaseSelect.value = caseCache[0].id;
           await buildMontagePreview();
         }
-      });
+        });
+      }
     </script>
   </body>
 </html>
