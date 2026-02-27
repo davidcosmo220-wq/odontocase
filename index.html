@@ -292,6 +292,7 @@
       let logoImage = null;
       let currentPreviewBlob = null;
       let currentPreviewDataUrl = "";
+      let simulatedUser = null;
 
       const formatDimensions = {
         square: { width: 1080, height: 1080 },
@@ -737,16 +738,22 @@
       }
 
       async function register() {
-        if (!auth) {
-          setStatus(authStatus, "Preencha o firebaseConfig com as credenciais reais do seu projeto.", "error");
-          return;
-        }
         const email = $("authEmail").value.trim();
         const pass = $("authPassword").value;
         if (!email || !pass) {
           setStatus(authStatus, "Informe email e senha para cadastrar.", "error");
           return;
         }
+
+        if (!auth) {
+          simulatedUser = { uid: "simulado", email };
+          localStorage.setItem("odontorec_sim_user", JSON.stringify(simulatedUser));
+          toggleViews(true);
+          loggedUser.textContent = `Usuário (teste): ${email}`;
+          setStatus(authStatus, "Cadastro simulado concluído. Entrando no dashboard...", "success");
+          return;
+        }
+
         try {
           await createUserWithEmailAndPassword(auth, email, pass);
           setStatus(authStatus, "Conta criada com sucesso.", "success");
@@ -756,16 +763,22 @@
       }
 
       async function login() {
-        if (!auth) {
-          setStatus(authStatus, "Preencha o firebaseConfig com as credenciais reais do seu projeto.", "error");
-          return;
-        }
         const email = $("authEmail").value.trim();
         const pass = $("authPassword").value;
         if (!email || !pass) {
           setStatus(authStatus, "Informe email e senha para entrar.", "error");
           return;
         }
+
+        if (!auth) {
+          simulatedUser = { uid: "simulado", email };
+          localStorage.setItem("odontorec_sim_user", JSON.stringify(simulatedUser));
+          toggleViews(true);
+          loggedUser.textContent = `Usuário (teste): ${email}`;
+          setStatus(authStatus, "Login simulado realizado. Bem-vindo ao dashboard.", "success");
+          return;
+        }
+
         try {
           await signInWithEmailAndPassword(auth, email, pass);
           setStatus(authStatus, "Login realizado.", "success");
@@ -802,6 +815,10 @@
       });
 
       $("refreshBtn").addEventListener("click", async () => {
+        if (!auth) {
+          setStatus(caseStatus, "Modo teste: sem sincronização com Firebase.", "success");
+          return;
+        }
         const user = auth.currentUser;
         if (!user) return;
         await loadCases(user.uid);
@@ -810,13 +827,30 @@
       });
 
       $("logoutBtn").addEventListener("click", async () => {
-        if (!auth) return;
+        if (!auth) {
+          simulatedUser = null;
+          localStorage.removeItem("odontorec_sim_user");
+          toggleViews(false);
+          loggedUser.textContent = "Usuário: não autenticado";
+          setStatus(authStatus, "Logout simulado efetuado.", "success");
+          return;
+        }
         await signOut(auth);
         setStatus(authStatus, "Logout efetuado.", "success");
       });
 
       if (hasPlaceholderConfig) {
-        setStatus(authStatus, "Configure o firebaseConfig (apiKey, authDomain, projectId...) para habilitar o login.", "error");
+        setStatus(authStatus, "Modo teste ativo: preencha email e senha para entrar no dashboard (login simulado).", "success");
+        try {
+          const saved = localStorage.getItem("odontorec_sim_user");
+          if (saved) {
+            simulatedUser = JSON.parse(saved);
+            toggleViews(true);
+            loggedUser.textContent = `Usuário (teste): ${simulatedUser.email}`;
+          }
+        } catch (e) {
+          localStorage.removeItem("odontorec_sim_user");
+        }
       }
 
       if (auth) {
