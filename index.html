@@ -1,145 +1,790 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>OdontoCase</title>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OdontoRec | SaaS para Casos Clínicos</title>
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --panel: #131416;
+        --panel-soft: #1a1b1f;
+        --panel-hover: #212229;
+        --text: #f5f5f5;
+        --muted: #aaaaaf;
+        --border: #2b2d33;
+        --accent: #ef4444;
+        --accent-soft: #f87171;
+        --success: #22c55e;
+      }
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-  getAuth, onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: linear-gradient(145deg, #09090b 0%, #111216 100%);
+        color: var(--text);
+        font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+        min-height: 100vh;
+      }
+      h1,h2,h3,h4,p { margin: 0; }
+      input,select,textarea,button {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-family: inherit;
+      }
+      input,select,textarea {
+        width: 100%;
+        background: var(--panel-soft);
+        color: var(--text);
+        border: 1px solid transparent;
+      }
+      input:focus,select:focus,textarea:focus { outline: none; border-color: #464a53; }
+      button { cursor: pointer; font-weight: 600; }
 
-import {
-  getFirestore, collection, addDoc, getDocs
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+      .btn-primary { background: var(--accent); color: #fff; }
+      .btn-primary:hover { background: var(--accent-soft); }
+      .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+      .status { margin-top: 10px; min-height: 20px; font-size: .85rem; }
+      .status.error { color: #fb7185; }
+      .status.success { color: var(--success); }
+      .hidden { display: none !important; }
+      .auth-subtitle { margin-top: 8px; color: var(--muted); font-size: .92rem; }
 
-import {
-  getStorage, ref, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+      .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      .auth-card {
+        width: 100%; max-width: 420px; padding: 28px; border-radius: 18px;
+        border: 1px solid var(--border); background: rgba(19,20,22,.95);
+        box-shadow: 0 18px 50px rgba(0,0,0,.35);
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+      .brand-mark {
+        width: 14px; height: 14px; border-radius: 50%; background: var(--accent);
+        box-shadow: 0 0 15px rgba(239,68,68,.5);
+      }
+      .stack { display: grid; gap: 10px; margin-top: 20px; }
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBD...",
-  authDomain: "odontocase-23a1a.firebaseapp.com",
-  projectId: "odontocase-23a1a",
-  storageBucket: "odontocase-23a1a.firebasestorage.app",
-  messagingSenderId: "1008566809476",
-  appId: "1:1008566809476:web:f80fe34f9445b316dfe3d1"
-};
+      .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+      .sidebar {
+        padding: 24px; border-right: 1px solid var(--border); background: rgba(10,10,11,.92);
+        position: sticky; top: 0; height: 100vh;
+      }
+      .menu { margin-top: 18px; display: grid; gap: 10px; }
+      .menu-item { text-align: left; background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+      .menu-item:hover { background: var(--panel-hover); }
+      .menu-item.logout { border-color: #472125; color: #fecdd3; }
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+      .content { padding: 26px; }
+      .cards {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px;
+      }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+      .card .label { color: var(--muted); font-size: .8rem; }
+      .card .value { margin-top: 6px; font-size: 1.2rem; font-weight: 700; }
 
-onAuthStateChanged(auth, user=>{
-  if(!user) location.href="/login.html";
-  else carregarCasos(user.uid);
-});
+      .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+      .panel h3 { margin-bottom: 10px; }
+      .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap: 10px; }
+      .case-list, .montage-list { display: grid; gap: 10px; }
+      .case-item, .montage-item { background: var(--panel-soft); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+      .case-header, .montage-header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      .case-date { color: var(--muted); font-size: .82rem; }
+      .images { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+      .image-box { background: #0f1013; border-radius: 8px; padding: 8px; }
+      .image-box span { display:block; font-size:.78rem; color: var(--muted); margin-bottom: 6px; }
+      .image-box img { width: 100%; max-height: 210px; object-fit: cover; border-radius: 6px; border: 1px solid #2f3138; }
 
-window.logout=()=>signOut(auth);
+      .montage-grid {
+        display: grid;
+        grid-template-columns: minmax(290px, 1fr) minmax(340px, 1.2fr);
+        gap: 12px;
+      }
+      .editor-stack { display: grid; gap: 10px; }
+      .editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      canvas {
+        width: 100%;
+        background: #0d0f12;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        aspect-ratio: 1 / 1;
+      }
+      .safe-note { color: var(--muted); font-size: .78rem; margin-top: 6px; }
+      .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+      .chip { font-size: .75rem; background: #20242c; color: #d7dbe3; padding: 4px 8px; border-radius: 30px; }
 
-window.salvarCaso = async function(){
-  const user = auth.currentUser;
-  const nome = document.getElementById("nome").value;
-  const antes = document.getElementById("antes").files[0];
-  const depois = document.getElementById("depois").files[0];
+      @media (max-width: 1000px) {
+        .app { grid-template-columns: 1fr; }
+        .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+        .montage-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <section id="authView" class="auth-shell">
+      <div class="auth-card">
+        <div class="brand"><span class="brand-mark"></span><span>OdontoRec</span></div>
+        <h2 style="margin-top: 12px">Acesse sua conta</h2>
+        <p class="auth-subtitle">SaaS para gestão de casos clínicos e marketing visual odontológico.</p>
+        <div class="stack">
+          <input id="authEmail" type="email" placeholder="Email profissional" autocomplete="email" />
+          <input id="authPassword" type="password" placeholder="Senha" autocomplete="current-password" />
+          <button id="loginBtn" class="btn-primary">Entrar</button>
+          <button id="registerBtn" class="btn-ghost">Criar conta</button>
+        </div>
+        <p id="authStatus" class="status"></p>
+      </div>
+    </section>
 
-  const refAntes = ref(storage,`casos/${user.uid}/${Date.now()}_antes`);
-  const refDepois = ref(storage,`casos/${user.uid}/${Date.now()}_depois`);
+    <section id="appView" class="app hidden">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark"></span><span>OdontoRec</span></div>
+        <p class="auth-subtitle" id="loggedUser">Usuário:</p>
+        <div class="menu">
+          <button class="menu-item" type="button">Dashboard</button>
+          <button class="menu-item" type="button" id="refreshBtn">Atualizar dados</button>
+          <button class="menu-item logout" type="button" id="logoutBtn">Logout</button>
+        </div>
+      </aside>
 
-  await uploadBytes(refAntes,antes);
-  await uploadBytes(refDepois,depois);
+      <main class="content">
+        <div class="cards">
+          <article class="card"><p class="label">Total de casos</p><p class="value" id="totalCases">0</p></article>
+          <article class="card"><p class="label">Total de montagens</p><p class="value" id="totalMontages">0</p></article>
+          <article class="card"><p class="label">Última atualização</p><p class="value" style="font-size: 1rem" id="lastUpdate">--</p></article>
+        </div>
 
-  const urlAntes = await getDownloadURL(refAntes);
-  const urlDepois = await getDownloadURL(refDepois);
+        <section class="panel">
+          <h3>Novo caso clínico</h3>
+          <div class="grid-form">
+            <input id="caseName" type="text" placeholder="Nome do paciente ou procedimento" />
+            <input id="beforeImage" type="file" accept="image/*" />
+            <input id="afterImage" type="file" accept="image/*" />
+          </div>
+          <button id="saveCaseBtn" class="btn-primary" style="margin-top: 10px">Salvar caso</button>
+          <p id="caseStatus" class="status"></p>
+        </section>
 
-  await addDoc(collection(db,"usuarios",user.uid,"casos"),{
-    nome,
-    antes:urlAntes,
-    depois:urlDepois,
-    data:new Date()
-  });
+        <section class="panel">
+          <h3>Gerador de Montagens</h3>
+          <div class="chips" style="margin-bottom: 10px">
+            <span class="chip">Instagram Feed</span><span class="chip">Stories</span><span class="chip">WhatsApp</span>
+          </div>
+          <div class="montage-grid">
+            <div class="editor-stack">
+              <select id="montageCaseSelect"></select>
+              <div class="grid-form">
+                <select id="layoutType">
+                  <option value="horizontal">1) Lado a lado horizontal</option>
+                  <option value="vertical">2) Lado a lado vertical</option>
+                  <option value="split">3) Dividido com linha central</option>
+                  <option value="frame">4) Com moldura profissional</option>
+                  <option value="branding">5) Com branding completo</option>
+                </select>
+                <select id="exportFormat">
+                  <option value="square">1080x1080 (Feed)</option>
+                  <option value="portrait">1080x1350 (Vertical)</option>
+                  <option value="story">1080x1920 (Stories)</option>
+                </select>
+              </div>
+              <div class="grid-form">
+                <input id="brightness" type="range" min="70" max="130" value="100" />
+                <input id="contrast" type="range" min="70" max="130" value="100" />
+              </div>
+              <div class="grid-form">
+                <input id="zoom" type="range" min="85" max="130" value="100" />
+                <input id="bgColor" type="color" value="#0f1115" />
+              </div>
+              <div class="grid-form">
+                <input id="procedureText" placeholder="Procedimento" />
+                <input id="patientText" placeholder="Paciente (opcional)" />
+              </div>
+              <div class="grid-form">
+                <input id="clinicName" placeholder="Nome da clínica" />
+                <input id="clinicLogo" type="file" accept="image/*" />
+              </div>
+              <div class="grid-form">
+                <input id="brandColor" type="color" value="#ef4444" />
+                <input id="fontFamily" placeholder="Fonte padrão (ex: Inter)" value="Inter" />
+              </div>
+              <textarea id="watermarkText" rows="2" placeholder="Marca d'água automática">@odontorec</textarea>
+              <p class="safe-note">Área segura aplicada automaticamente (8%) para evitar cortes em redes sociais.</p>
+              <div class="editor-actions">
+                <button id="generateBtn" class="btn-primary">Gerar montagem</button>
+                <button id="saveMontageBtn" class="btn-ghost">Salvar no banco</button>
+                <button id="downloadPngBtn" class="btn-ghost">Baixar PNG HQ</button>
+                <button id="downloadJpgBtn" class="btn-ghost">Baixar JPEG Instagram</button>
+                <button id="shareBtn" class="btn-ghost">Compartilhar</button>
+                <button id="copyCaptionBtn" class="btn-ghost">Copiar legenda sugerida</button>
+              </div>
+              <p id="montageStatus" class="status"></p>
+            </div>
+            <div>
+              <canvas id="previewCanvas" width="1080" height="1080"></canvas>
+              <p class="safe-note">Preview em tempo real com enquadramento inteligente, alinhamento e padronização visual.</p>
+            </div>
+          </div>
+        </section>
 
-  alert("Caso salvo ✔");
-  carregarCasos(user.uid);
-}
+        <section class="panel">
+          <h3>Casos cadastrados</h3>
+          <div id="caseList" class="case-list"></div>
+        </section>
 
-async function carregarCasos(uid){
-  const querySnapshot = await getDocs(
-    collection(db,"usuarios",uid,"casos")
-  );
-  const lista=document.getElementById("lista");
-  lista.innerHTML="";
-  querySnapshot.forEach(doc=>{
-    const d=doc.data();
-    lista.innerHTML+=`
-    <div class="cardCaso">
-      <b>${d.nome}</b><br>
-      <img src="${d.antes}">
-      <img src="${d.depois}">
-    </div>`;
-  });
-}
-</script>
+        <section class="panel">
+          <h3>Montagens geradas</h3>
+          <div id="montageList" class="montage-list"></div>
+        </section>
+      </main>
+    </section>
 
-<style>
-body{margin:0;font-family:system-ui;background:#0b0d11;color:white}
-.layout{display:flex;height:100vh}
-.sidebar{
-width:250px;background:#11141b;padding:25px
-}
-.sidebar h2{margin-top:0}
-.sidebar button{
-width:100%;padding:12px;margin-top:10px;
-background:#1a1f2a;border:none;color:white;border-radius:8px
-}
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import {
+        getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+      import {
+        getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      import {
+        getStorage, ref, uploadBytes, getDownloadURL,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-.main{flex:1;padding:30px;overflow:auto}
-.box{
-background:#11141b;padding:20px;border-radius:14px;margin-bottom:20px
-}
-input{padding:12px;margin-top:10px;width:100%;border-radius:8px;border:none;background:#0b0d11;color:white}
-button.primary{
-background:#e11d48;border:none;padding:12px;border-radius:8px;margin-top:10px;color:white;font-weight:600
-}
+      const firebaseConfig = {
+        apiKey: "SUA_API_KEY",
+        authDomain: "SEU_AUTH_DOMAIN",
+        projectId: "SEU_PROJECT_ID",
+        storageBucket: "SEU_STORAGE_BUCKET",
+        messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+        appId: "SEU_APP_ID",
+      };
 
-.cardCaso{
-background:#0b0d11;padding:15px;border-radius:10px;margin-top:10px
-}
-.cardCaso img{width:120px;margin-right:10px;border-radius:6px}
-</style>
-</head>
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const storage = getStorage(app);
 
-<body>
+      const $ = (id) => document.getElementById(id);
+      const authView = $("authView");
+      const appView = $("appView");
+      const authStatus = $("authStatus");
+      const caseStatus = $("caseStatus");
+      const montageStatus = $("montageStatus");
+      const caseList = $("caseList");
+      const montageList = $("montageList");
+      const montageCaseSelect = $("montageCaseSelect");
+      const loggedUser = $("loggedUser");
+      const previewCanvas = $("previewCanvas");
+      const ctx = previewCanvas.getContext("2d");
 
-<div class="layout">
+      let caseCache = [];
+      let montageCache = [];
+      let logoImage = null;
+      let currentPreviewBlob = null;
+      let currentPreviewDataUrl = "";
 
-<div class="sidebar">
-<h2>OdontoCase</h2>
-<button>Dashboard</button>
-<button onclick="logout()">Sair</button>
-</div>
+      const formatDimensions = {
+        square: { width: 1080, height: 1080 },
+        portrait: { width: 1080, height: 1350 },
+        story: { width: 1080, height: 1920 },
+      };
 
-<div class="main">
+      function setStatus(el, message, type = "") {
+        el.textContent = message;
+        el.className = `status ${type}`.trim();
+      }
 
-<div class="box">
-<h3>Novo Caso</h3>
-<input id="nome" placeholder="Nome do paciente ou caso">
-<input id="antes" type="file">
-<input id="depois" type="file">
-<button class="primary" onclick="salvarCaso()">Salvar Caso</button>
-</div>
+      function toggleViews(isLogged) {
+        authView.classList.toggle("hidden", isLogged);
+        appView.classList.toggle("hidden", !isLogged);
+      }
 
-<div class="box">
-<h3>Meus Casos</h3>
-<div id="lista"></div>
-</div>
+      function formatDate(v) {
+        if (!v) return "--";
+        const d = v.toDate ? v.toDate() : new Date(v);
+        return d.toLocaleString("pt-BR");
+      }
 
-</div>
+      function createImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      }
 
-</div>
+      async function loadLogoPreview(file) {
+        if (!file) {
+          logoImage = null;
+          return;
+        }
+        const localURL = URL.createObjectURL(file);
+        logoImage = await createImage(localURL);
+      }
 
-</body>
+      function getEditorConfig() {
+        return {
+          layout: $("layoutType").value,
+          exportFormat: $("exportFormat").value,
+          brightness: Number($("brightness").value) / 100,
+          contrast: Number($("contrast").value) / 100,
+          zoom: Number($("zoom").value) / 100,
+          bgColor: $("bgColor").value,
+          procedure: $("procedureText").value.trim(),
+          patient: $("patientText").value.trim(),
+          clinicName: $("clinicName").value.trim(),
+          brandColor: $("brandColor").value,
+          fontFamily: $("fontFamily").value.trim() || "Inter",
+          watermark: $("watermarkText").value.trim() || "@odontorec",
+          date: new Date().toLocaleDateString("pt-BR"),
+        };
+      }
+
+      function applyCanvasSize(format) {
+        const { width, height } = formatDimensions[format] || formatDimensions.square;
+        previewCanvas.width = width;
+        previewCanvas.height = height;
+      }
+
+      function drawImageCover(img, x, y, w, h, zoom = 1, filter = "") {
+        const iw = img.width;
+        const ih = img.height;
+        const boxRatio = w / h;
+        const imgRatio = iw / ih;
+        let sw;
+        let sh;
+        if (imgRatio > boxRatio) {
+          sh = ih;
+          sw = ih * boxRatio;
+        } else {
+          sw = iw;
+          sh = iw / boxRatio;
+        }
+        sw /= zoom;
+        sh /= zoom;
+        const sx = (iw - sw) / 2;
+        const sy = (ih - sh) / 2;
+        if (filter) ctx.filter = filter;
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+        ctx.filter = "none";
+      }
+
+      function drawBranding(cfg, safeX, safeY, safeW, safeH) {
+        const title = cfg.procedure || "Antes e Depois";
+        ctx.fillStyle = cfg.brandColor;
+        ctx.fillRect(safeX, safeY, safeW, 70);
+        ctx.fillStyle = "#fff";
+        ctx.font = `700 32px ${cfg.fontFamily}`;
+        ctx.fillText(title, safeX + 20, safeY + 45);
+
+        if (cfg.clinicName) {
+          ctx.font = `600 24px ${cfg.fontFamily}`;
+          ctx.fillText(cfg.clinicName, safeX + 20, safeY + safeH - 20);
+        }
+        if (cfg.patient) {
+          ctx.font = `500 21px ${cfg.fontFamily}`;
+          ctx.fillText(`Paciente: ${cfg.patient}`, safeX + 20, safeY + safeH - 50);
+        }
+        ctx.font = `500 18px ${cfg.fontFamily}`;
+        ctx.fillStyle = "rgba(255,255,255,.88)";
+        ctx.fillText(cfg.date, safeX + safeW - 140, safeY + safeH - 20);
+
+        if (logoImage) {
+          const logoW = 120;
+          const logoH = 120;
+          ctx.drawImage(logoImage, safeX + safeW - logoW - 18, safeY + 82, logoW, logoH);
+        }
+
+        ctx.save();
+        ctx.translate(safeX + safeW - 20, safeY + safeH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = "rgba(255,255,255,.15)";
+        ctx.font = `700 22px ${cfg.fontFamily}`;
+        ctx.fillText(cfg.watermark, 0, 0);
+        ctx.restore();
+      }
+
+      async function buildMontagePreview() {
+        const user = auth.currentUser;
+        const selectedCaseId = montageCaseSelect.value;
+        if (!user || !selectedCaseId) {
+          setStatus(montageStatus, "Selecione um caso para gerar a montagem.", "error");
+          return;
+        }
+
+        const selectedCase = caseCache.find((c) => c.id === selectedCaseId);
+        if (!selectedCase) return;
+        const cfg = getEditorConfig();
+        applyCanvasSize(cfg.exportFormat);
+
+        const beforeImg = await createImage(selectedCase.beforeUrl);
+        const afterImg = await createImage(selectedCase.afterUrl);
+        const filter = `brightness(${cfg.brightness}) contrast(${cfg.contrast})`;
+
+        const W = previewCanvas.width;
+        const H = previewCanvas.height;
+        const safe = Math.round(Math.min(W, H) * 0.08);
+        const safeX = safe;
+        const safeY = safe;
+        const safeW = W - safe * 2;
+        const safeH = H - safe * 2;
+
+        ctx.fillStyle = cfg.bgColor;
+        ctx.fillRect(0, 0, W, H);
+
+        const gap = 12;
+        if (cfg.layout === "horizontal" || cfg.layout === "split" || cfg.layout === "branding") {
+          const w = (safeW - gap) / 2;
+          drawImageCover(beforeImg, safeX, safeY, w, safeH, cfg.zoom, filter);
+          drawImageCover(afterImg, safeX + w + gap, safeY, w, safeH, cfg.zoom, filter);
+          if (cfg.layout === "split") {
+            ctx.fillStyle = "#ffffffcc";
+            ctx.fillRect(safeX + w + gap / 2 - 2, safeY, 4, safeH);
+          }
+        } else if (cfg.layout === "vertical") {
+          const h = (safeH - gap) / 2;
+          drawImageCover(beforeImg, safeX, safeY, safeW, h, cfg.zoom, filter);
+          drawImageCover(afterImg, safeX, safeY + h + gap, safeW, h, cfg.zoom, filter);
+        } else if (cfg.layout === "frame") {
+          const margin = 24;
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(safeX, safeY, safeW, safeH);
+          const w = (safeW - gap - margin * 3) / 2;
+          const h = safeH - margin * 2;
+          drawImageCover(beforeImg, safeX + margin, safeY + margin, w, h, cfg.zoom, filter);
+          drawImageCover(afterImg, safeX + margin * 2 + w + gap, safeY + margin, w, h, cfg.zoom, filter);
+        }
+
+        ctx.fillStyle = "rgba(0,0,0,.55)";
+        ctx.fillRect(safeX + 10, safeY + 10, 80, 28);
+        ctx.fillRect(safeX + safeW - 90, safeY + 10, 80, 28);
+        ctx.fillStyle = "#fff";
+        ctx.font = `700 18px ${cfg.fontFamily}`;
+        ctx.fillText("ANTES", safeX + 18, safeY + 30);
+        ctx.fillText("DEPOIS", safeX + safeW - 84, safeY + 30);
+
+        if (cfg.layout === "branding") {
+          drawBranding(cfg, safeX, safeY, safeW, safeH);
+        } else {
+          ctx.save();
+          ctx.translate(safeX + safeW - 24, safeY + safeH - 14);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillStyle = "rgba(255,255,255,.16)";
+          ctx.font = `700 18px ${cfg.fontFamily}`;
+          ctx.fillText(cfg.watermark, 0, 0);
+          ctx.restore();
+        }
+
+        currentPreviewDataUrl = previewCanvas.toDataURL("image/png", 1);
+        currentPreviewBlob = await new Promise((resolve) => previewCanvas.toBlob(resolve, "image/png", 1));
+        setStatus(montageStatus, "Preview gerado com sucesso.", "success");
+      }
+
+      async function uploadCaseImage(file, uid, kind) {
+        const fileRef = ref(storage, `usuarios/${uid}/casos/${Date.now()}-${kind}-${file.name}`);
+        await uploadBytes(fileRef, file);
+        return getDownloadURL(fileRef);
+      }
+
+      function renderCases() {
+        if (!caseCache.length) {
+          caseList.innerHTML = "<p class='auth-subtitle'>Nenhum caso cadastrado ainda.</p>";
+          $("totalCases").textContent = "0";
+          montageCaseSelect.innerHTML = "<option value=''>Selecione um caso</option>";
+          return;
+        }
+
+        $("totalCases").textContent = String(caseCache.length);
+        $("lastUpdate").textContent = formatDate(caseCache[0]?.createdAt);
+        caseList.innerHTML = caseCache.map((data) => `
+          <article class="case-item">
+            <div class="case-header">
+              <strong>${data.name}</strong>
+              <span class="case-date">${formatDate(data.createdAt)}</span>
+            </div>
+            <div class="images">
+              <div class="image-box"><span>Antes</span><img src="${data.beforeUrl}" alt="Antes ${data.name}" loading="lazy" /></div>
+              <div class="image-box"><span>Depois</span><img src="${data.afterUrl}" alt="Depois ${data.name}" loading="lazy" /></div>
+            </div>
+          </article>`).join("");
+
+        montageCaseSelect.innerHTML = "<option value=''>Selecione um caso clínico</option>" +
+          caseCache.map((c) => `<option value="${c.id}">${c.name} • ${formatDate(c.createdAt)}</option>`).join("");
+      }
+
+      function renderMontages() {
+        $("totalMontages").textContent = String(montageCache.length);
+        if (!montageCache.length) {
+          montageList.innerHTML = "<p class='auth-subtitle'>Nenhuma montagem gerada ainda.</p>";
+          return;
+        }
+
+        montageList.innerHTML = montageCache.map((m) => `
+          <article class="montage-item">
+            <div class="montage-header">
+              <strong>${m.procedure || "Montagem"}</strong>
+              <span class="case-date">${formatDate(m.createdAt)}</span>
+            </div>
+            <img src="${m.previewUrl}" alt="Montagem ${m.procedure || ""}" style="width:100%;border-radius:8px;border:1px solid #2f3138;max-height:280px;object-fit:cover;" />
+            <div class="editor-actions" style="margin-top:8px">
+              <button class="btn-ghost" data-reedit="${m.id}" data-case="${m.caseId}">Reeditar</button>
+              <button class="btn-ghost" data-duplicate="${m.id}" data-case="${m.caseId}">Duplicar</button>
+            </div>
+          </article>
+        `).join("");
+      }
+
+      async function loadCases(uid) {
+        const snapshot = await getDocs(query(collection(db, "usuarios", uid, "casos"), orderBy("createdAt", "desc")));
+        caseCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        renderCases();
+      }
+
+      async function loadMontages(uid) {
+        const all = [];
+        for (const item of caseCache) {
+          const subSnap = await getDocs(query(collection(db, "usuarios", uid, "casos", item.id, "montagens"), orderBy("createdAt", "desc")));
+          subSnap.docs.forEach((docItem) => all.push({ id: docItem.id, caseId: item.id, ...docItem.data() }));
+        }
+        all.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        montageCache = all;
+        renderMontages();
+      }
+
+      async function saveCase() {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const name = $("caseName").value.trim();
+        const beforeFile = $("beforeImage").files[0];
+        const afterFile = $("afterImage").files[0];
+        if (!name || !beforeFile || !afterFile) {
+          setStatus(caseStatus, "Preencha nome e selecione as duas imagens.", "error");
+          return;
+        }
+
+        try {
+          setStatus(caseStatus, "Enviando imagens e salvando caso...");
+          const [beforeUrl, afterUrl] = await Promise.all([
+            uploadCaseImage(beforeFile, user.uid, "antes"),
+            uploadCaseImage(afterFile, user.uid, "depois"),
+          ]);
+          await addDoc(collection(db, "usuarios", user.uid, "casos"), { name, beforeUrl, afterUrl, createdAt: serverTimestamp() });
+          $("caseName").value = "";
+          $("beforeImage").value = "";
+          $("afterImage").value = "";
+          await loadCases(user.uid);
+          await loadMontages(user.uid);
+          setStatus(caseStatus, "Caso salvo com sucesso.", "success");
+        } catch (error) {
+          setStatus(caseStatus, `Erro ao salvar caso: ${error.message}`, "error");
+        }
+      }
+
+      async function saveMontage() {
+        const user = auth.currentUser;
+        const caseId = montageCaseSelect.value;
+        if (!user || !caseId) {
+          setStatus(montageStatus, "Selecione um caso para salvar a montagem.", "error");
+          return;
+        }
+        if (!currentPreviewBlob) {
+          await buildMontagePreview();
+        }
+        if (!currentPreviewBlob) return;
+
+        try {
+          const cfg = getEditorConfig();
+          const imagePath = `usuarios/${user.uid}/montagens/${caseId}/${Date.now()}.png`;
+          const imageRef = ref(storage, imagePath);
+          await uploadBytes(imageRef, currentPreviewBlob, { contentType: "image/png" });
+          const previewUrl = await getDownloadURL(imageRef);
+
+          await addDoc(collection(db, "usuarios", user.uid, "casos", caseId, "montagens"), {
+            previewUrl,
+            imagePath,
+            caseId,
+            layout: cfg.layout,
+            exportFormat: cfg.exportFormat,
+            procedure: cfg.procedure,
+            patient: cfg.patient,
+            clinicName: cfg.clinicName,
+            brandColor: cfg.brandColor,
+            watermark: cfg.watermark,
+            fontFamily: cfg.fontFamily,
+            brightness: cfg.brightness,
+            contrast: cfg.contrast,
+            zoom: cfg.zoom,
+            bgColor: cfg.bgColor,
+            createdAt: serverTimestamp(),
+          });
+
+          await loadMontages(user.uid);
+          setStatus(montageStatus, "Montagem salva e vinculada ao caso.", "success");
+        } catch (error) {
+          setStatus(montageStatus, `Falha ao salvar montagem: ${error.message}`, "error");
+        }
+      }
+
+      function downloadCurrent(format) {
+        if (!currentPreviewDataUrl) return;
+        const name = `odontorec-montagem-${Date.now()}.${format}`;
+        let href = currentPreviewDataUrl;
+        if (format === "jpg") {
+          href = previewCanvas.toDataURL("image/jpeg", 0.9);
+        }
+        const a = document.createElement("a");
+        a.href = href;
+        a.download = name;
+        a.click();
+      }
+
+      async function shareCurrent() {
+        if (!currentPreviewBlob) {
+          setStatus(montageStatus, "Gere o preview antes de compartilhar.", "error");
+          return;
+        }
+        const file = new File([currentPreviewBlob], "montagem-odontorec.png", { type: "image/png" });
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            title: "OdontoRec - Antes e Depois",
+            text: "Resultado clínico gerado no OdontoRec.",
+            files: [file],
+          });
+          setStatus(montageStatus, "Compartilhamento enviado.", "success");
+        } else {
+          await navigator.clipboard.writeText(currentPreviewDataUrl.slice(0, 200));
+          setStatus(montageStatus, "Web Share indisponível: prévia copiada para área de transferência.", "success");
+        }
+      }
+
+      async function copySuggestedCaption() {
+        const cfg = getEditorConfig();
+        const c = `✨ Antes e Depois\nProcedimento: ${cfg.procedure || "Odontologia estética"}\nData: ${cfg.date}\n#odontologia #antesedepois #odontorec`;
+        await navigator.clipboard.writeText(c);
+        setStatus(montageStatus, "Legenda sugerida copiada.", "success");
+      }
+
+      async function reeditMontage(montageId, caseId) {
+        const user = auth.currentUser;
+        if (!user) return;
+        const docRef = doc(db, "usuarios", user.uid, "casos", caseId, "montagens", montageId);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) return;
+        const m = snap.data();
+        montageCaseSelect.value = caseId;
+        $("layoutType").value = m.layout || "horizontal";
+        $("exportFormat").value = m.exportFormat || "square";
+        $("procedureText").value = m.procedure || "";
+        $("patientText").value = m.patient || "";
+        $("clinicName").value = m.clinicName || "";
+        $("brandColor").value = m.brandColor || "#ef4444";
+        $("watermarkText").value = m.watermark || "@odontorec";
+        $("fontFamily").value = m.fontFamily || "Inter";
+        $("brightness").value = String(Math.round((m.brightness || 1) * 100));
+        $("contrast").value = String(Math.round((m.contrast || 1) * 100));
+        $("zoom").value = String(Math.round((m.zoom || 1) * 100));
+        $("bgColor").value = m.bgColor || "#0f1115";
+        await buildMontagePreview();
+        setStatus(montageStatus, "Montagem carregada para reedição.", "success");
+      }
+
+      async function duplicateMontage(montageId, caseId) {
+        await reeditMontage(montageId, caseId);
+        await saveMontage();
+        setStatus(montageStatus, "Montagem duplicada com sucesso.", "success");
+      }
+
+      async function register() {
+        const email = $("authEmail").value.trim();
+        const pass = $("authPassword").value;
+        if (!email || !pass) {
+          setStatus(authStatus, "Informe email e senha para cadastrar.", "error");
+          return;
+        }
+        try {
+          await createUserWithEmailAndPassword(auth, email, pass);
+          setStatus(authStatus, "Conta criada com sucesso.", "success");
+        } catch (error) {
+          setStatus(authStatus, `Cadastro falhou: ${error.message}`, "error");
+        }
+      }
+
+      async function login() {
+        const email = $("authEmail").value.trim();
+        const pass = $("authPassword").value;
+        if (!email || !pass) {
+          setStatus(authStatus, "Informe email e senha para entrar.", "error");
+          return;
+        }
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+          setStatus(authStatus, "Login realizado.", "success");
+        } catch (error) {
+          setStatus(authStatus, `Login inválido: ${error.message}`, "error");
+        }
+      }
+
+      $("registerBtn").addEventListener("click", register);
+      $("loginBtn").addEventListener("click", login);
+      $("saveCaseBtn").addEventListener("click", saveCase);
+      $("generateBtn").addEventListener("click", buildMontagePreview);
+      $("saveMontageBtn").addEventListener("click", saveMontage);
+      $("downloadPngBtn").addEventListener("click", () => downloadCurrent("png"));
+      $("downloadJpgBtn").addEventListener("click", () => downloadCurrent("jpg"));
+      $("shareBtn").addEventListener("click", shareCurrent);
+      $("copyCaptionBtn").addEventListener("click", copySuggestedCaption);
+      $("clinicLogo").addEventListener("change", async (e) => {
+        await loadLogoPreview(e.target.files[0]);
+        await buildMontagePreview();
+      });
+
+      ["layoutType", "exportFormat", "brightness", "contrast", "zoom", "bgColor", "procedureText", "patientText", "clinicName", "brandColor", "fontFamily", "watermarkText", "montageCaseSelect"].forEach((id) => {
+        $(id).addEventListener("input", () => buildMontagePreview().catch(() => {}));
+        $(id).addEventListener("change", () => buildMontagePreview().catch(() => {}));
+      });
+
+      montageList.addEventListener("click", async (e) => {
+        const reeditId = e.target.dataset.reedit;
+        const duplicateId = e.target.dataset.duplicate;
+        const caseId = e.target.dataset.case;
+        if (reeditId) await reeditMontage(reeditId, caseId);
+        if (duplicateId) await duplicateMontage(duplicateId, caseId);
+      });
+
+      $("refreshBtn").addEventListener("click", async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+        await loadCases(user.uid);
+        await loadMontages(user.uid);
+        setStatus(caseStatus, "Dados atualizados.", "success");
+      });
+
+      $("logoutBtn").addEventListener("click", async () => {
+        await signOut(auth);
+        setStatus(authStatus, "Logout efetuado.", "success");
+      });
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          toggleViews(false);
+          loggedUser.textContent = "Usuário: não autenticado";
+          caseCache = [];
+          montageCache = [];
+          renderCases();
+          renderMontages();
+          return;
+        }
+        toggleViews(true);
+        loggedUser.textContent = `Usuário: ${user.email}`;
+        await loadCases(user.uid);
+        await loadMontages(user.uid);
+        if (caseCache.length) {
+          montageCaseSelect.value = caseCache[0].id;
+          await buildMontagePreview();
+        }
+      });
+    </script>
+  </body>
 </html>
